@@ -25,4 +25,23 @@ RockMQ有三个触发点来触发路由删除
 1. 当Broker正常退出时，会调用JVM的钩子函数；
 
 2. 钩子函数中调用`BrokerController.shutdown`
+
+3. `BrokerController#shutdown`调用`unregisterBrokerAll`
+
+4. `BrokerController#unregisterBrokerAll`中遍历`NameServer`，逐个发送注销路由数据包
+
+5. 在NameServer中，由`DefaultRequestProcessor`根据`RequestCode`的不同来处理`Broker`发送的数据包，当接收到`RequestCode.UNREGISTER_BROKER`时，调用`unregisterBroker`进行路由删除
+
+6. `DefaultRequestProcessor#unregisterBroker`转调`RouteInfoManager#unregisterBroker`来进行路由删除
+
+7. 在`RouteInfoManager#unregisterBroker`维护路由表信息:  `brokerLiveTable`, `filterServerTable`,`brokerAddrTable`,`clusterAddrTable`,`topicQueueTable`
+
+
+
 - 当NameServer监听到通道关闭，通道异常或通道空闲时，删除路由信息
+
+        NameServer中由`BrokerHousekeepingService`监听通道事件，当监听到
+
+        `ChannelClose`,`ChannelException`.`ChannelIdle`事件时，会调用
+
+        `RouteInfoManager#onChannelDestroy`方法进行路由删除
